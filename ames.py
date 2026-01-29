@@ -73,5 +73,45 @@ def plot_mi_scores(scores):
 
 # On affiche seulement le Top 20 pour que le graphique soit lisible
 plot_mi_scores(mi_scores.head(20))
+# --- ÉTAPE 6 : FEATURE ENGINEERING INTELLIGENT ---
+print("\n🔧 ÉTAPE 6 : FEATURE ENGINEERING")
+
+# Analyse BldgType
+bldgtype_score = mi_scores.get('BldgType', 0)
+print(f"BldgType MI: {bldgtype_score:.6f}")
+
+# Trouver meilleure feature numérique
+numeric_features = X.select_dtypes(include=['float64', 'int64']).columns
+true_numeric = [col for col in numeric_features if X[col].nunique() > 20]
+best_numeric = mi_scores[mi_scores.index.isin(true_numeric)].index[0]
+print(f"Meilleure numérique: {best_numeric}")
+
+# Création interaction normalisée
+numeric_norm = (X[best_numeric] - X[best_numeric].median()) / X[best_numeric].std()
+X['BldgType_X_GrLivArea'] = X['BldgType'] * numeric_norm
+
+# Recalcul MI avec nouvelle feature
+discrete_features_new = X.dtypes == int
+discrete_features_new['BldgType_X_GrLivArea'] = False
+mi_scores_new = make_mi_scores(X, y, discrete_features_new)
+
+# Comparaison
+new_score = mi_scores_new['BldgType_X_GrLivArea']
+print(f"Nouvelle feature MI: {new_score:.6f}")
+if bldgtype_score > 0:
+    print(f"Amélioration: {((new_score/bldgtype_score)-1)*100:.1f}%")
+
+# Visualisation rapide
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+sns.boxplot(x=data['BldgType'], y=y, ax=axes[0])
+axes[0].set_title('BldgType seul')
+scatter = axes[1].scatter(data[best_numeric], y, c=X['BldgType_X_GrLivArea'], cmap='viridis', alpha=0.6)
+axes[1].set_title(f'Interaction BldgType × {best_numeric}')
+plt.colorbar(scatter, ax=axes[1])
+plt.tight_layout()
+plt.show()
+
+print("\nNouveau Top 5 MI:")
+print(mi_scores_new.head(5))
 plt.show()
 
